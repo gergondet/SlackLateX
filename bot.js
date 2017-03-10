@@ -1,4 +1,5 @@
 var request = require("request");
+const querystring = require("querystring");
 
 //var WebSocket = require('ws');
 var WebSocketClient = require('websocket').client;
@@ -6,6 +7,7 @@ var ws;
 var message="";
 var i = 0;
 var latex = {};
+var users = {};
 var fs = require('fs');
 fs.readFile('secret.txt','utf8',function (err, data) {
     global.token=data;
@@ -21,7 +23,7 @@ function getWebSocket(){
          //console.log(response.url);
          if (!error && response.statusCode == 200) {
             url = JSON.parse(body).url;
-            console.log( "Creating url:"+url);
+            //console.log( "Creating url:"+url);
             createWS(url);
          }
     });
@@ -38,7 +40,7 @@ function createWS(url) {
 
     client.on('connect', function(conn) {
 	connection = conn;
-        console.log('WebSocket Client Connected');
+        //console.log('WebSocket Client Connected');
 
         connection.on('error', function(error) {
             console.log("Connection Error: " + error.toString());
@@ -66,23 +68,40 @@ function deleteMessage(timestamp,channel) {
     request(dURL, function (error, response, body) {
          //console.log(response.url);
          if (!error && response.statusCode == 200) {
-            console.log(body);
+            //console.log(body);
          }
         });
 }
 
-function postLatex(channel,text) {
+function postLatex(mObj) {
+    var channel = mObj.channel;
+    var text = replaceAll(mObj.text.substring(1, mObj.text.length - 1),'&amp;','&');
     var urlBase= 'http://latex.codecogs.com/png.latex?%5Cdpi%7B300%7D%20'+encodeURIComponent(text);
 
-    var msg = "Original text: $" + text + "$"
-    msg = encodeURIComponent(msg)
+    var userName = users[mObj.user];
 
-    var dURL = "https://slack.com/api/chat.postMessage?token="+global.token+"&channel="+channel+"&text="+msg+"&attachments=%5B%7B%22fallback%22%3A%22.%22%2C%22color%22%3A%20%22%2336a64f%22%2C%22image_url%22%3A%22" + encodeURIComponent(urlBase)+"%22%7D%5D&pretty=1";
+    var msg = {
+            "token": global.token,
+            "channel": channel,
+            "text": " ",
+            "attachments": [
+                    {
+                            "fallback": "Equation: $" + text + "$",
+                            "color": "#36a64f",
+                            "text": "$" + text + "$",
+                            "image_url": urlBase,
+                            "footer": "Posted by " + userName
+                    }
+            ]
+    }
+    msg.attachments = JSON.stringify(msg.attachments);
+
+    var dURL = "https://slack.com/api/chat.postMessage?" + querystring.stringify(msg);
     
     request(dURL, function (error, response, body) {
          //console.log(response.url);
          if (!error && response.statusCode == 200) {
-            console.log(body);
+            //console.log(body);
          }
         });
 }
@@ -90,36 +109,25 @@ function postLatex(channel,text) {
 
 function handleMessage(mObj,message){
 
-    console.log("Received: '" + message.utf8Data + "'");
-    console.log(mObj.type+"\n");
+    //console.log("Received: '" + message.utf8Data + "'");
+    //console.log(mObj.type+"\n");
 
     if(mObj.type==='message'){
         
-        console.log("\t"+mObj.channel+"\n");
-        console.log("\t"+mObj.user+"\n");
-        console.log("\t"+mObj.text+"\n");
-        console.log("\t"+escape(mObj.text)+"\n");
+        //console.log("\t"+mObj.channel+"\n");
+        //console.log("\t"+mObj.user+"\n");
+        //console.log("\t"+mObj.text+"\n");
+        //console.log("\t"+escape(mObj.text)+"\n");
 
         if(mObj.text==='..ping'){
             pong(mObj.channel,"pong");
         }
         if(typeof(mObj.text) != "undefined" && mObj.text.length > 1 && mObj.text[0]==='$' && mObj.text[mObj.text.length-1]==='$') {
             deleteMessage(mObj.ts,mObj.channel);
-			postLatex(mObj.channel,replaceAll(mObj.text.substring(1,mObj.text.length-1),'&amp;','&'));
+            getUserName(mObj);
 
-            console.log('Converting to latex: ' + mObj.text);
+            //console.log('Converting to latex: ' + mObj.text);
         }
-        
-        if(mObj.text==='..startLatex') {
-            latex[mObj.user+mObj.channel]=true;
-            console.log('Enable latex for ' + mObj.user+mObj.channel);
-        }
-
-        if(mObj.text==='..stopLatex') {
-            latex[mObj.user+mObj.channel]=false;
-            console.log('disable latex for ' + mObj.user+mObj.channel);
-        }
-
     }
 
 }
@@ -141,4 +149,21 @@ function escapeRegExp(str) {
 }
 function replaceAll(str, find, replace) {
 	return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+function getUserName(mObj) {
+    var userId = mObj.user;
+    if(userId in users)
+    {
+        postLatex(mObj);
+        return;
+    }
+    var dURL = "https://slack.com/api/users.info?token="+global.token+"&user="+userId;
+    request(dURL, function(error, response, body) {
+            body = JSON.parse(body);
+            if(!error && response.statusCode == 200 && body.ok)
+            {
+                users[userId] = body.user.name;
+                postLatex(mObj);
+            }
+    });
 }
