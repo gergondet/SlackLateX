@@ -74,7 +74,10 @@ function deleteMessage(timestamp,channel) {
 function postLatex(channel,text) {
     var urlBase= 'http://latex.codecogs.com/png.latex?%5Cdpi%7B300%7D%20'+encodeURIComponent(text);
 
-    var dURL = "https://slack.com/api/chat.postMessage?token="+global.token+"&channel="+channel+"&text=%20&attachments=%5B%7B%22fallback%22%3A%22.%22%2C%22color%22%3A%20%22%2336a64f%22%2C%22image_url%22%3A%22" + encodeURIComponent(urlBase)+"%22%7D%5D&pretty=1";
+    var msg = "Original text: $" + text + "$"
+    msg = encodeURIComponent(msg)
+
+    var dURL = "https://slack.com/api/chat.postMessage?token="+global.token+"&channel="+channel+"&text="+msg+"&attachments=%5B%7B%22fallback%22%3A%22.%22%2C%22color%22%3A%20%22%2336a64f%22%2C%22image_url%22%3A%22" + encodeURIComponent(urlBase)+"%22%7D%5D&pretty=1";
     
     request(dURL, function (error, response, body) {
          //console.log(response.url);
