@@ -100,7 +100,7 @@ function handleMessage(mObj,message){
         if(mObj.text==='..ping'){
             pong(mObj.channel,"pong");
         }
-        if(latex[mObj.user+mObj.channel]==true && mObj.text[0]==='$' && mObj.text[mObj.text.length-1]==='$' && mObj.text.length>1) {
+        if(typeof(mObj.text) != "undefined" && mObj.text.length > 1 && mObj.text[0]==='$' && mObj.text[mObj.text.length-1]==='$') {
             deleteMessage(mObj.ts,mObj.channel);
 			postLatex(mObj.channel,replaceAll(mObj.text.substring(1,mObj.text.length-1),'&amp;','&'));
 
