@@ -15,15 +15,14 @@ fs.readFile('secret.txt','utf8',function (err, data) {
     getWebSocket();
 });
 
+var start_t = Date.now()/1000
 var connection = null;
 
 //gets the websocket url 
 function getWebSocket(){
     request('https://slack.com/api/rtm.start?token='+global.token+'&pretty=1', function (error, response, body) {
-         //console.log(response.url);
          if (!error && response.statusCode == 200) {
             url = JSON.parse(body).url;
-            //console.log( "Creating url:"+url);
             createWS(url);
          }
     });
@@ -40,8 +39,6 @@ function createWS(url) {
 
     client.on('connect', function(conn) {
 	connection = conn;
-        //console.log('WebSocket Client Connected');
-
         connection.on('error', function(error) {
             console.log("Connection Error: " + error.toString());
         });
@@ -66,9 +63,7 @@ function deleteMessage(timestamp,channel) {
     var dURL = "https://slack.com/api/chat.delete?token="+global.token+"&ts=" +timestamp+"&channel="+channel+"&pretty=1";
 
     request(dURL, function (error, response, body) {
-         //console.log(response.url);
          if (!error && response.statusCode == 200) {
-            //console.log(body);
          }
         });
 }
@@ -99,9 +94,7 @@ function postLatex(mObj) {
     var dURL = "https://slack.com/api/chat.postMessage?" + querystring.stringify(msg);
     
     request(dURL, function (error, response, body) {
-         //console.log(response.url);
          if (!error && response.statusCode == 200) {
-            //console.log(body);
          }
         });
 }
@@ -109,24 +102,13 @@ function postLatex(mObj) {
 
 function handleMessage(mObj,message){
 
-    //console.log("Received: '" + message.utf8Data + "'");
-    //console.log(mObj.type+"\n");
-
     if(mObj.type==='message'){
-        
-        //console.log("\t"+mObj.channel+"\n");
-        //console.log("\t"+mObj.user+"\n");
-        //console.log("\t"+mObj.text+"\n");
-        //console.log("\t"+escape(mObj.text)+"\n");
-
         if(mObj.text==='..ping'){
             pong(mObj.channel,"pong");
         }
-        if(typeof(mObj.text) != "undefined" && mObj.text.length > 1 && mObj.text[0]==='$' && mObj.text[mObj.text.length-1]==='$') {
+        if(mObj.ts > start_t && typeof(mObj.text) != "undefined" && mObj.text.length > 1 && mObj.text[0]==='$' && mObj.text[mObj.text.length-1]==='$') {
             deleteMessage(mObj.ts,mObj.channel);
             getUserName(mObj);
-
-            //console.log('Converting to latex: ' + mObj.text);
         }
     }
 
